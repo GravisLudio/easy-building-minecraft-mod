@@ -1,0 +1,35 @@
+{
+	"schemaVersion": 1,
+	"id": "easy-building",
+	"version": "${version}",
+	"name": "Easy Building",
+	"description": "Pick a vertical or horizontal plane and drag to place blocks fast and straight: walls, floors, bridges, roofs. Respects slabs and stairs. Client-side only.",
+	"authors": [
+		"Marum",
+		"GravisLudio (26.2 port)"
+	],
+	"contact": {
+		"homepage": "https://modrinth.com/mod/easy-building",
+		"sources": "https://github.com/marianolarre/easy-building-minecraft-mod"
+	},
+	"license": "CC0-1.0",
+	"icon": "assets/easy-building/icon.png",
+	"environment": "client",
+	"entrypoints": {
+		"client": [
+			"marum.easybuilding.client.EasyBuildingClient"
+		]
+	},
+	"mixins": [
+		{
+			"config": "easy-building.client.mixins.json",
+			"environment": "client"
+		}
+	],
+	"depends": {
+		"fabricloader": ">=0.19.5",
+		"minecraft": ">=26.2- <26.3-",
+		"java": ">=25",
+		"fabric-api": "*"
+	}
+}

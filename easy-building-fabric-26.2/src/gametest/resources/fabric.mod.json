@@ -1,0 +1,16 @@
+{
+	"schemaVersion": 1,
+	"id": "easybuilding_gametest",
+	"version": "1.0.0",
+	"name": "Easy Building game tests",
+	"environment": "client",
+	"entrypoints": {
+		"fabric-client-gametest": [
+			"marum.easybuilding.gametest.EasyBuildingClientTests"
+		]
+	},
+	"depends": {
+		"easy-building": "*",
+		"fabric-client-gametest-api-v1": "*"
+	}
+}
