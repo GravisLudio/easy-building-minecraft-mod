@@ -15,6 +15,7 @@ All credit for the mod and its design goes to Marum. This folder only adapts the
 | `EasyBuildingClient` | Fabric API's `LevelRenderContext` no longer exposes `bufferSource()`: the grid is now submitted with `submitNodeCollector().submitCustomGeometry(...)` from `LevelRenderEvents.COLLECT_SUBMITS`. |
 | `EasyBuildingClient` | `BlockPos.getCenter()` is gone: replaced by `Vec3.atCenterOf(pos)` (2 places). |
 | `EasyBuildingClient` | Null guard in the render callback: `getProjectedBlock()` returns `null` when the view ray is parallel to the plane (it crashed the render before). |
+| `EasyBuildingClient` | **Crash when leaving the world with the mode on** (found 2026-10-15 in a real profile): the state is static and the tick handler called `getProjectedBlock()` with `client.player == null`. Now the state is cleared on `ClientPlayConnectionEvents.DISCONNECT`, the tick does nothing without a world (and drops pending key presses), and `getProjectedBlock()` is null-safe. |
 
 The placement mixin (`MultiPlayerGameMode.useItemOn`) is unchanged: the method signature is identical in 26.2.
 

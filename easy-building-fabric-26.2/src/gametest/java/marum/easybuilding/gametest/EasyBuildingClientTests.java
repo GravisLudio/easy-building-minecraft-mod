@@ -9,6 +9,7 @@ import net.fabricmc.fabric.api.client.gametest.v1.FabricClientGameTest;
 import net.fabricmc.fabric.api.client.gametest.v1.context.ClientGameTestContext;
 import net.fabricmc.fabric.api.client.gametest.v1.context.TestServerContext;
 import net.fabricmc.fabric.api.client.gametest.v1.context.TestSingleplayerContext;
+import net.minecraft.client.gui.screens.DeathScreen;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.world.item.Items;
@@ -182,8 +183,61 @@ public class EasyBuildingClientTests implements FabricClientGameTest {
                 context.waitTicks(5);
                 check(!clientBool(context, mc -> PlaneMode.active), "slab " + type + ": Plane mode did not turn off");
             }
-            System.out.println("[EB-TEST] ALL OK");
-        }
+
+            // ---------- 4) Leaving the world with the mode still ON (crash reported by Gravis on 2026-10-15) ----------
+            // Easy Building keeps its state in statics. After "Save and Quit" the client has no player/level any more;
+            // the tick handler used to call getProjectedBlock() -> NullPointerException on client.player.
+            server.runCommand("fill -6 199 7 6 199 14 air");
+            server.runCommand("fill -6 199 7 6 199 10 stone");
+            context.waitTicks(10);
+            stand(server, 0.5, 8.5, aim(new Vec3(0.5, 200 + EYE, 8.5), new Vec3(0.5, 200, 9.5)));
+            context.waitTicks(10);
+            context.getInput().pressKey(GLFW.GLFW_KEY_LEFT_ALT);
+            context.waitTicks(5);
+            check(clientBool(context, mc -> PlaneMode.active), "leave-world: Plane mode did not turn on");
+
+            // Other lifecycle changes with the mode ON: dimension change, then death + respawn (new LocalPlayer).
+            server.runCommand("gamemode creative @p");
+            server.runCommand("execute in minecraft:the_nether run tp @p 0 120 0");
+            context.waitTicks(60);
+            server.runCommand("execute in minecraft:overworld run tp @p 0.5 200 8.5 0 40");
+            context.waitTicks(40);
+            check(clientBool(context, mc -> mc.level != null && mc.player != null), "client died after a dimension change");
+            System.out.println("[EB-TEST] 4d dimension change with the mode ON: no crash: OK");
+
+            server.runCommand("gamemode survival @p");
+            server.runCommand("kill @p");
+            context.waitForScreen(DeathScreen.class);
+            context.clickScreenButton("deathScreen.respawn");
+            context.waitTicks(60);
+            check(clientBool(context, mc -> mc.level != null && mc.player != null && mc.player.isAlive()), "client died after respawn");
+            System.out.println("[EB-TEST] 4e death + respawn with the mode ON: no crash: OK");
+
+            // Make sure the mode is ON again (whatever the respawn did) before leaving the world
+            server.runCommand("tp @p 0.5 200 8.5 0 40");
+            context.waitTicks(20);
+            if (!clientBool(context, mc -> PlaneMode.active)) {
+                stand(server, 0.5, 8.5, aim(new Vec3(0.5, 200 + EYE, 8.5), new Vec3(0.5, 200, 9.5)));
+                context.waitTicks(10);
+                context.getInput().pressKey(GLFW.GLFW_KEY_LEFT_ALT);
+                context.waitTicks(5);
+            }
+            check(clientBool(context, mc -> PlaneMode.active), "leave-world: Plane mode is not ON before leaving");
+            System.out.println("[EB-TEST] 4a plane mode ON, leaving the world now");
+        }   // <- closes the singleplayer world (the client returns to the title screen)
+
+        context.waitTicks(40);
+        check(clientBool(context, mc -> mc.level == null && mc.player == null), "still in a world after closing it");
+        check(!clientBool(context, mc -> PlaneMode.active), "Plane mode is still ON after leaving the world");
+        System.out.println("[EB-TEST] 4b left the world with the mode ON: no crash, state cleared: OK");
+
+        // Alt on the title screen (no player, no level) must not crash either
+        context.getInput().pressKey(GLFW.GLFW_KEY_LEFT_ALT);
+        context.waitTicks(20);
+        check(clientBool(context, mc -> mc.player == null), "title screen: unexpected player");
+        check(!clientBool(context, mc -> PlaneMode.active), "Plane mode turned ON at the title screen");
+        System.out.println("[EB-TEST] 4c Alt on the title screen: no crash, mode stays off: OK");
+        System.out.println("[EB-TEST] ALL OK");
     }
 
     /** Teleports the player to the given spot of the platform (y=200) with the given {yaw, pitch}. */

@@ -11,6 +11,7 @@ import com.mojang.blaze3d.vertex.VertexConsumer;
 
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.keymapping.v1.KeyMappingHelper;
+import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry;
 import net.fabricmc.fabric.api.client.rendering.v1.hud.VanillaHudElements;
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext;
@@ -62,7 +63,20 @@ public class EasyBuildingClient implements ClientModInitializer {
                 CATEGORY
             ));
         
+        // Leaving the world (Save and Quit, disconnect, kicked...) must not leave the mode on: the state is static.
+        ClientPlayConnectionEvents.DISCONNECT.register((handler, minecraft) -> resetState());
+
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
+            // No world (title screen, loading screen, just after leaving a world): nothing to do. Drop pending key
+            // presses so they do not fire later, and clear any stale plane (client.player is null here).
+            if (client.player == null || client.level == null) {
+                while (showGridKey.consumeClick()) { }
+                if (PlaneMode.active) {
+                    resetState();
+                }
+                return;
+            }
+
             while (showGridKey.consumeClick()) {
                 if (PlaneMode.active) {
 					// Turn off
@@ -201,6 +215,13 @@ public class EasyBuildingClient implements ClientModInitializer {
 			}
 		);
     }    
+
+    /** Turns the mode off and forgets everything (used when there is no world any more). */
+    private static void resetState() {
+        PlaneMode.clear();
+        lastPlacedPos = null;
+        currentProjectedBlock = null;
+    }
 
     private static void line(
         VertexConsumer consumer,
@@ -367,7 +388,7 @@ public class EasyBuildingClient implements ClientModInitializer {
 
     // Project view vector onto selected plane
 	public static BlockPos getProjectedBlock() {
-		if (!PlaneMode.active) {
+		if (!PlaneMode.active || client == null || client.player == null) {
 			return null;
 		}
 
