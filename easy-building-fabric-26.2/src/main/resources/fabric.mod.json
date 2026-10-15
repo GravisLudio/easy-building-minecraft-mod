@@ -2,17 +2,17 @@
 	"schemaVersion": 1,
 	"id": "easy-building",
 	"version": "${version}",
-	"name": "Easy Building",
-	"description": "Pick a vertical or horizontal plane and drag to place blocks fast and straight: walls, floors, bridges, roofs. Respects slabs and stairs. Client-side only.",
+	"name": "Easy Building Continuation",
+	"description": "Unofficial Minecraft 26.2 continuation of Easy Building by Marum. Pick a vertical or horizontal plane and drag to place blocks fast and straight: walls, floors, bridges, roofs. Respects slabs and stairs. Client-side only.",
 	"authors": [
 		"Marum",
 		"GravisLudio (26.2 port)"
 	],
 	"contact": {
 		"homepage": "https://modrinth.com/mod/easy-building",
-		"sources": "https://github.com/marianolarre/easy-building-minecraft-mod"
+		"sources": "https://github.com/GravisLudio/easy-building-minecraft-mod/tree/fabric-26.2/easy-building-fabric-26.2"
 	},
-	"license": "CC0-1.0",
+	"license": "MIT",
 	"icon": "assets/easy-building/icon.png",
 	"environment": "client",
 	"entrypoints": {

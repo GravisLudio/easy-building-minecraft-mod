@@ -1,6 +1,6 @@
-# Easy Building — Fabric 26.2
+# Easy Building Continuation — Fabric 26.2 (unofficial)
 
-Port of [Easy Building](https://github.com/marianolarre/easy-building-minecraft-mod) (by **Marum**) from Fabric 26.1.2 to **Minecraft 26.2**.
+Unofficial continuation/port of [Easy Building](https://github.com/marianolarre/easy-building-minecraft-mod) (by **Marum**) from Fabric 26.1.2 to **Minecraft 26.2**.
 Client-side only. Pick a vertical or horizontal plane with **Left Alt** while looking at a block, then hold the use key and drag
 to place blocks fast and straight (walls, floors, bridges, roofs). Respects slabs and stairs.
 
@@ -31,4 +31,6 @@ The placement mixin (`MultiPlayerGameMode.useItemOn`) is unchanged: the method s
 
 ## License
 
-The repository ships a CC0 `LICENSE` (Fabric template); the Modrinth page lists MIT. Both allow this port.
+MIT (see `LICENSE` and `NOTICE.md`). Marum lists MIT on the Modrinth page of the original; the Fabric folders of the original repository also carry the CC0 text of the Fabric template
+and the repository declares no license at its root. MIT is the license that satisfies both: it keeps Marum's copyright notice, and the 26.2 changes are released under MIT too.
+This is an unofficial build: Marum has not published 26.2 nor answered the requests for it (issues #5 and #9, PRs #8 and #10 of the original repository) since July 2026.
