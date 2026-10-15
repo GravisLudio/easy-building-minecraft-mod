@@ -13,6 +13,9 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.SlabBlock;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.state.properties.SlabType;
 import net.minecraft.world.phys.Vec3;
 
 /**
@@ -82,6 +85,17 @@ public class EasyBuildingClientTests implements FabricClientGameTest {
             System.out.println("[EB-TEST] 1d inventory 64 -> " + left + " (3 consumed): OK");
             context.takeScreenshot("3-horizontal-plane-after-drag");
 
+            // Regression for upstream 1.0.1 ("Fixed crash when looking up or down"): with a HORIZONTAL plane,
+            // looking exactly level makes the view ray parallel to the plane -> getProjectedBlock() == null.
+            // The grid must just not be drawn (no crash) and holding use must place nothing.
+            stand(server, 0.5, -1.5, new float[] { 0f, 0f });
+            context.waitTicks(20);
+            context.getInput().holdKeyFor(o -> o.keyUse, 8);
+            context.waitTicks(8);
+            check(clientBool(context, mc -> mc.level != null && mc.player != null), "client died with a parallel ray (pitch 0)");
+            check(countStone(server) == 61, "stone count changed with a parallel ray, is " + countStone(server));
+            System.out.println("[EB-TEST] 1f horizontal plane, pitch 0 (parallel ray): no crash, nothing placed: OK");
+
             // Left Alt again turns it off
             context.getInput().pressKey(GLFW.GLFW_KEY_LEFT_ALT);
             context.waitTicks(5);
@@ -124,16 +138,73 @@ public class EasyBuildingClientTests implements FabricClientGameTest {
             System.out.println("[EB-TEST] 2d no adjacent face -> nothing placed: OK");
             context.takeScreenshot("5-vertical-plane-after-drag");
 
+            // Regression for upstream 1.0.1 again, this time with a VERTICAL plane: looking straight up / down.
+            int stoneBefore = countStone(server);
+            for (float pitch : new float[] { -90f, 90f }) {
+                stand(server, 0.5, 3.5, new float[] { 0f, pitch });
+                context.waitTicks(20);
+                context.getInput().holdKeyFor(o -> o.keyUse, 8);
+                context.waitTicks(8);
+                check(clientBool(context, mc -> mc.level != null && mc.player != null), "client died looking at pitch " + pitch);
+                check(countStone(server) == stoneBefore, "stone count changed looking at pitch " + pitch);
+            }
+            System.out.println("[EB-TEST] 2e vertical plane, looking straight up and down: no crash, nothing placed: OK");
+
             context.getInput().pressKey(GLFW.GLFW_KEY_LEFT_ALT);
             context.waitTicks(5);
             check(!clientBool(context, mc -> PlaneMode.active), "vertical: Plane mode did not turn off");
+
+            // ---------- 3) Slabs keep their half: bottom slab floor -> bottom slabs, top slab floor -> top slabs ----------
+            server.runCommand("clear @p");
+            server.runCommand("give @p stone_slab 64");
+            for (SlabType half : new SlabType[] { SlabType.BOTTOM, SlabType.TOP }) {
+                String type = half == SlabType.BOTTOM ? "bottom" : "top";
+                double standY = half == SlabType.BOTTOM ? 199.5 : 200.0;   // top of the slab layer
+                server.runCommand("fill -6 199 7 6 199 14 air");
+                server.runCommand("fill -6 199 7 6 199 10 stone_slab[type=" + type + "]");
+                context.waitTicks(10);
+                // Select the slab floor from its top face
+                stand(server, 0.5, standY, 8.5, aim(new Vec3(0.5, standY + EYE, 8.5), new Vec3(0.5, standY, 9.5)));
+                context.waitTicks(10);
+                context.getInput().pressKey(GLFW.GLFW_KEY_LEFT_ALT);
+                context.waitTicks(5);
+                check(clientBool(context, mc -> PlaneMode.active), "slab " + type + ": Plane mode did not turn on");
+                // Extend one block past the edge (z=11): aim at the plane, 3 blocks away
+                stand(server, 0.5, standY, 8.5, aim(new Vec3(0.5, standY + EYE, 8.5), new Vec3(0.5, standY, 11.5)));
+                context.waitTicks(10);
+                context.takeScreenshot("6-slab-" + type + "-plane");
+                context.getInput().holdKeyFor(o -> o.keyUse, 8);
+                context.waitTicks(8);
+                SlabType placed = slabTypeAt(server, 0, 199, 11);
+                check(placed == half, "slab " + type + ": block at (0,199,11) is " + placed + ", expected " + half);
+                System.out.println("[EB-TEST] 3 " + type + " slab floor extended with a " + placed + " slab: OK");
+                context.getInput().pressKey(GLFW.GLFW_KEY_LEFT_ALT);
+                context.waitTicks(5);
+                check(!clientBool(context, mc -> PlaneMode.active), "slab " + type + ": Plane mode did not turn off");
+            }
             System.out.println("[EB-TEST] ALL OK");
         }
     }
 
-    /** Teleports the player to the given spot of the platform with the given {yaw, pitch}. */
+    /** Teleports the player to the given spot of the platform (y=200) with the given {yaw, pitch}. */
     private static void stand(TestServerContext server, double x, double z, float[] yawPitch) {
-        server.runCommand(String.format(Locale.ROOT, "tp @p %.3f 200 %.3f %.4f %.4f", x, z, yawPitch[0], yawPitch[1]));
+        stand(server, x, 200.0, z, yawPitch);
+    }
+
+    private static void stand(TestServerContext server, double x, double y, double z, float[] yawPitch) {
+        server.runCommand(String.format(Locale.ROOT, "tp @p %.3f %.3f %.3f %.4f %.4f", x, y, z, yawPitch[0], yawPitch[1]));
+    }
+
+    private static int countStone(TestServerContext server) {
+        return server.computeOnServer(s -> s.getPlayerList().getPlayers().get(0).getInventory().countItem(Items.STONE));
+    }
+
+    /** Slab half at the position, or null if it is not a stone slab. */
+    private static SlabType slabTypeAt(TestServerContext server, int x, int y, int z) {
+        return server.computeOnServer(s -> {
+            BlockState state = s.overworld().getBlockState(new BlockPos(x, y, z));
+            return state.is(Blocks.STONE_SLAB) ? state.getValue(SlabBlock.TYPE) : null;
+        });
     }
 
     /** Yaw/pitch (Minecraft convention) to look from {@code eye} to {@code target}. */
